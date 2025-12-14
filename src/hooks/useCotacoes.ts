@@ -108,6 +108,34 @@ export function useCotacoes() {
     }
   }, [online, carregarCotacoes])
 
+  // Realtime: escuta mudanças no banco e atualiza automaticamente
+  useEffect(() => {
+    // Cria um canal para escutar mudanças na tabela 'cotacoes'
+    const channel = supabase
+      .channel('cotacoes-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Escuta INSERT, UPDATE e DELETE
+          schema: 'public',
+          table: 'cotacoes'
+        },
+        (payload) => {
+          console.log('Realtime: mudança detectada', payload.eventType)
+          // Recarrega os dados quando houver qualquer mudança
+          carregarCotacoes()
+        }
+      )
+      .subscribe((status) => {
+        console.log('Realtime status:', status)
+      })
+
+    // Cleanup: remove a subscription quando o componente desmontar
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [carregarCotacoes])
+
   const adicionarCotacao = useCallback(async (input: CotacaoInput) => {
     const agora = new Date().toISOString()
     const novaCotacao: Cotacao = {
